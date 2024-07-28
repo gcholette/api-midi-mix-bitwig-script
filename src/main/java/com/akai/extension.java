@@ -15,12 +15,15 @@ public class extension extends ControllerExtension {
 
    private Integer[] mutePadsArray = { 1, 4, 7, 10, 13, 16, 19, 22 };
    private Integer[] recPadsArray = { 3, 6, 9, 12, 15, 18, 21, 24 };
+   private Integer[] sliderCCs = { 19, 23, 27, 31, 49, 53, 57, 61 };
+
    private Integer BANK_RIGHT = 25;
    private Integer BANK_LEFT = 26;
 
    private int selectedBank = 0;
    private Track[] tracks = new Track[8];
    private CursorRemoteControlsPage[] remoteControlPages = new CursorRemoteControlsPage[8];
+   private CursorRemoteControlsPage masterTrackRemoteControls;
 
    private int[][] knobCCs = {
          { 16, 17, 18 },
@@ -44,9 +47,17 @@ public class extension extends ControllerExtension {
       host.getMidiInPort(0).setMidiCallback((ShortMidiMessageReceivedCallback) msg -> onMidi0(msg));
       host.getMidiInPort(0).setSysexCallback((String data) -> onSysex0(data));
 
+      Track masterTrack = host.createMasterTrack(0);
+      masterTrackRemoteControls = masterTrack.createCursorRemoteControlsPage(8);
+      for (int i = 0; i < 8; i++) {
+         masterTrackRemoteControls.getParameter(i).markInterested();
+         masterTrackRemoteControls.getParameter(i).setIndication(true);
+
+      }
+
       for (int i = 0; i < tracks.length; i++) {
          tracks[i] = host.createTrackBank(8, 0, 0).getItemAt(i);
-         remoteControlPages[i] = tracks[i].createCursorRemoteControlsPage(24); // Example: 24 remote controls
+         remoteControlPages[i] = tracks[i].createCursorRemoteControlsPage(24);
       }
 
       initPads(1);
@@ -88,6 +99,7 @@ public class extension extends ControllerExtension {
          handleRecPadPress(data1);
       } else if (status == 0xB0) {
          handleKnobTurn(data1, data2);
+         handleSliderMove(data1, data2);
       }
    }
 
@@ -100,6 +112,14 @@ public class extension extends ControllerExtension {
             host.showPopupNotification("Bank " + (selectedBank + 1) + " selected");
             updateBank();
             break;
+         }
+      }
+   }
+
+   private void handleSliderMove(int cc, int value) {
+      for (int i = 0; i < sliderCCs.length; i++) {
+         if (sliderCCs[i] == cc) {
+            masterTrackRemoteControls.getParameter(i).set(value, 128);
          }
       }
    }
